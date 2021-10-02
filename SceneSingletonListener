@@ -1,0 +1,61 @@
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using System.Collections;
+using System.Collections.Generic;
+using System;
+using System.Linq;
+using System.Reflection;
+
+    // add this to the scene to automatically add and remove Singleton children   
+    // TODO: deep search for properties 'SceneDependencies' and 'Persistent'
+    // TODO: gather list of types by converting System.Runtime.Type to Type
+    // TODO: replace 'CreateInstance' invokation
+    public class SceneSingletonListener : MonoBehaviour {
+        public void Awake() {
+            DontDestroyOnLoad(gameObject);
+            SceneManager.activeSceneChanged += ChangedActiveScene;
+        }
+
+        private static IEnumerable<Type> _list;
+
+        public void ChangedActiveScene(Scene oldScene, Scene newScene)
+         {
+             _list = _list == null ?
+             typeof(Singleton<MonoBehaviour>).Assembly.GetTypes().Where(t => {
+                 return t.BaseType.Name == "Singleton`1";
+             }) : _list;
+
+             // gather properties 'SceneDependencies' from top-level class
+             // gather properties 'Persistent' from top-level class or from baseclass
+             // invokes 'CreateInstance' from top-level class only
+             foreach (var t in _list) {
+                PropertyInfo temp;
+                string[] sd = (temp = t.GetProperty("SceneDependencies", BindingFlags.Static | BindingFlags.Public)) == null ? null : (string[]) temp.GetValue(null, null);
+                bool persistent = (bool) ((temp = t.GetProperty("Persistent", BindingFlags.Static | BindingFlags.Public)) == null ? t.BaseType.GetProperty("Persistent", BindingFlags.Static | BindingFlags.Public).GetValue(null, null) : temp.GetValue(null, null));
+
+                // create if:
+                //   instance is null and:
+                //      ScreenDependency is null
+                //      ScreenDependency is equal to current scene
+                //Debug.Log("FN=" + t.FullName + ", ");
+                var tinstance = t.BaseType.GetProperty("Instance", BindingFlags.Static | BindingFlags.Public).GetValue(null, null);
+                if (( (sd == null ? true : sd.Length == 0) || sd.Contains(newScene.name)) && tinstance == null)
+                {
+                    var singletonObject = new GameObject();
+                    singletonObject.name = t.FullName.ToString() + " (Singleton)";
+                    if (persistent) UnityEngine.Object.DontDestroyOnLoad(singletonObject);
+                    t.BaseType.GetMethod("CreateInstance", BindingFlags.Static | BindingFlags.Public).Invoke(null, new object[] { singletonObject } );
+                } else if ((sd != null ? sd.Length != 0 : false) && !(sd == null ? false : sd.Contains(newScene.name)) && tinstance != null) {
+                    // delete if:
+                    //      ScreenDependency is not null and is not equal to current scene and instance isnt null
+                    //      and if not persistant
+                    if (persistent)
+                    {
+                        MonoBehaviour comp = (MonoBehaviour)tinstance;
+                        UnityEngine.GameObject.Destroy(comp.gameObject);
+                    }
+                }
+            }
+        }
+    }
+
