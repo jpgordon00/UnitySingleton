@@ -30,3 +30,7 @@ SingletonComp = SingletonComp.Instance;
 ```
 
 ## Limitations
+- Instantiate and Destroy singleton via 'Singleton.Instance' properrty.
+- Remove 'Singleton.CreateInstance' by using reflection to find properties at any inheritance level.
+- Replace list assembling by comparing System.Runtime.Type.Name with comparing types ( casting System.Runtime.Type to Type ).
+- Use reflection to find properties at any inheritance level in 'SceneSingletonListener.ChangedActiveScene'
