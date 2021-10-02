@@ -23,7 +23,7 @@ SingletonComp = SingletonComp.Instance;
 ```javascript
 using UnityEngine;
 
-public class SingletonComp : Singleton<SingletonTest>
+public class SingletonComp : Singleton<SingletonComp>
 {
   public static string[] SceneDependencies {
         get => new string[] { "Menu Scene" };
