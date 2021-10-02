@@ -1,5 +1,5 @@
 # UnitySingleton
-Modern Singleton for MonoBehaviouir's
+Modern Singleton for MonoBehaviouir's in Unity
 
 ## How do I use it
 - Add 'Singleton' and 'SceneSingletonListener' somewhere Unity reads scripts.
