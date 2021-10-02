@@ -2,6 +2,7 @@
 Modern Singleton for MonoBehaviouir's
 
 ## How do I use it
+- Add 'Singleton' and 'SceneSingletonListener' somewhere Unity reads scripts.
 - Add 'SceneSingletonListener'' to the first loaded scene.
 - Declare and use a singleton:
 ```javascript
