@@ -1,5 +1,9 @@
 # UnitySingleton
-Modern Singleton for MonoBehaviouir's in Unity
+Modern Singleton for MonoBehaviouir's in Unity.
+
+## Features
+- Automatic MonoBehaviour singleton instantiation and removal.
+- Singleton's can be instantiated on specified scenes only.
 
 ## How do I use it
 - Add 'Singleton' and 'SceneSingletonListener' somewhere Unity reads scripts.
