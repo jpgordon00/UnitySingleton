@@ -35,6 +35,22 @@ public class SingletonComp : Singleton<SingletonComp>
 // in any class during runtime...
 SingletonComp = SingletonComp.Instance;
 ```
+- Use a singleton that is also a prefab in the 'Resources' folder.
+```javascript
+using UnityEngine;
+
+public class SingletonComp : Singleton<SingletonComp>
+{
+
+  // in '...Resources/Singleton'
+  public static string ResourceName {
+        get => "Singleton";
+    }
+}
+
+// in any class during runtime...
+SingletonComp = SingletonComp.Instance;
+```
 
 ## Limitations
 - Instantiation and Destruction of singletones is not via 'Singleton.Instance' property, it uses the scene listener instead.
