@@ -53,10 +53,10 @@ SingletonComp = SingletonComp.Instance;
 ```
 
 ## Limitations
-- <ins>Instantiation and Destruction of singletones is not via 'Singleton.Instance' property, it uses the scene listener instead.</ins>
+- ~~Instantiation and Destruction of singletones is not via 'Singleton.Instance' property, it uses the scene listener instead.~~
 > For some Unity applications, in particular those that don't rely on scene transitions, using a scene listener for a listener is entirely unnecesary. If a scene listener is not present, instantion and destruction should be done via 'Singleton.Instance' property. 
-- <ins>Instantiation via attachment of component does not allow component properties to be edited in the editor.
-> Allow instantiation via prefab in addition to the current solution that instatiates in code.</ins>
+- ~~Instantiation via attachment of component does not allow component properties to be edited in the editor.~~
+> ~~Allow instantiation via prefab in addition to the current solution that instatiates in code.~~
 - Remove 'Singleton.CreateInstance' by using reflection to find properties at any inheritance level.
 > Currently the properties 'Persistent', 'SceneDependencies' and 'ResourceName' are only read on the top level of the inherited member. Alternatively you could recursively or iteratively search through children until Instance types are found.
 - Replace list assembling by comparing System.Runtime.Type.Name with comparing types ( casting System.Runtime.Type to Type ). 
