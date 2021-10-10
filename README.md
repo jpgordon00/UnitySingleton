@@ -3,7 +3,9 @@ Modern Singleton for MonoBehaviouir's in Unity.
 
 ## Features
 - Automatic MonoBehaviour singleton instantiation and removal.
-- Singleton's can be instantiated on specified scenes only.
+> Attach one component to any object in the scene for automatic instantiation of Singletons. Alternatively, any call to the 'Instance' property where a scene listener is not present in the scene will instantiate the object.
+- Instantiation via prefab can be done by specifying the 'ResourceName' property, otherwise any top-level inherited member of 'Singleton' will by attached to a new game object.
+- Singleton's can be instantiated on only specified scenes.
 
 ## How do I use it
 - Add 'Singleton' and 'SceneSingletonListener' somewhere Unity reads scripts.
