@@ -20,31 +20,35 @@ using System.Reflection;
 
         public void ChangedActiveScene(Scene oldScene, Scene newScene)
          {
-             _list = _list == null ?
+            _list = _list == null ?
              typeof(Singleton<MonoBehaviour>).Assembly.GetTypes().Where(t => {
+                 if (t == null) return false;
+                 if (t.BaseType == null) return false;
                  return t.BaseType.Name == "Singleton`1";
              }) : _list;
 
              // gather properties 'SceneDependencies' from top-level class
              // gather properties 'Persistent' from top-level class or from baseclass
+             // gather propertis 'ResourceName' from top-level class
              // invokes 'CreateInstance' from top-level class only
              foreach (var t in _list) {
-                PropertyInfo temp;
-                string[] sd = (temp = t.GetProperty("SceneDependencies", BindingFlags.Static | BindingFlags.Public)) == null ? null : (string[]) temp.GetValue(null, null);
-                bool persistent = (bool) ((temp = t.GetProperty("Persistent", BindingFlags.Static | BindingFlags.Public)) == null ? t.BaseType.GetProperty("Persistent", BindingFlags.Static | BindingFlags.Public).GetValue(null, null) : temp.GetValue(null, null));
+            PropertyInfo temp;
+            string[] sd = (temp = t.GetProperty("SceneDependencies", BindingFlags.Static | BindingFlags.Public)) == null ? null : (string[]) temp.GetValue(null, null);
+            bool persistent = (bool) ((temp = t.GetProperty("Persistent", BindingFlags.Static | BindingFlags.Public)) == null ? t.BaseType.GetProperty("Persistent", BindingFlags.Static | BindingFlags.Public).GetValue(null, null) : temp.GetValue(null, null));
+            string ResourceName = (temp = t.GetProperty("ResourceName", BindingFlags.Static | BindingFlags.Public)) == null ? null : (string) temp.GetValue(null, null);
 
                 // create if:
                 //   instance is null and:
                 //      ScreenDependency is null
                 //      ScreenDependency is equal to current scene
-                //Debug.Log("FN=" + t.FullName + ", ");
+                // Only call 'CreateInstance' if 'ResourceName' doesn't exists...if it does, instantiate via Resource.Load
                 var tinstance = t.BaseType.GetProperty("Instance", BindingFlags.Static | BindingFlags.Public).GetValue(null, null);
                 if (( (sd == null ? true : sd.Length == 0) || sd.Contains(newScene.name)) && tinstance == null)
                 {
-                    var singletonObject = new GameObject();
-                    singletonObject.name = t.FullName.ToString() + " (Singleton)";
+                    var singletonObject = ResourceName == null ? new GameObject() : UnityEngine.GameObject.Instantiate(Resources.Load(ResourceName));
+                    singletonObject.name = t.FullName.ToString();
                     if (persistent) UnityEngine.Object.DontDestroyOnLoad(singletonObject);
-                    t.BaseType.GetMethod("CreateInstance", BindingFlags.Static | BindingFlags.Public).Invoke(null, new object[] { singletonObject } );
+                    if (ResourceName == null) t.BaseType.GetMethod("CreateInstance", BindingFlags.Static | BindingFlags.Public).Invoke(null, new object[] { singletonObject } );
                 } else if ((sd != null ? sd.Length != 0 : false) && !(sd == null ? false : sd.Contains(newScene.name)) && tinstance != null) {
                     // delete if:
                     //      ScreenDependency is not null and is not equal to current scene and instance isnt null
@@ -58,4 +62,3 @@ using System.Reflection;
             }
         }
     }
-
