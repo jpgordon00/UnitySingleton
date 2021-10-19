@@ -6,7 +6,8 @@ using System;
 using System.Linq;
 using System.Reflection;
 
-    // add this to the scene to automatically add and remove Singleton children   
+    // add this to the scene to automatically add and remove Singleton children
+    // TODO: instead of ignoring base classes, seafch of children and instantiate
     // TODO: deep search for properties 'SceneDependencies' and 'Persistent'
     // TODO: gather list of types by converting System.Runtime.Type to Type
     // TODO: replace 'CreateInstance' invokation
@@ -16,44 +17,108 @@ using System.Reflection;
             SceneManager.activeSceneChanged += ChangedActiveScene;
         }
 
-        private static IEnumerable<Type> _list;
+        private IEnumerable<Type> _list;
+
+        public void Start() {
+            _CheckSingletons();
+        }
 
         public void ChangedActiveScene(Scene oldScene, Scene newScene)
          {
-            _list = _list == null ?
-             typeof(Singleton<MonoBehaviour>).Assembly.GetTypes().Where(t => {
-                 if (t == null) return false;
-                 if (t.BaseType == null) return false;
-                 return t.BaseType.Name == "Singleton`1";
-             }) : _list;
+            if (_list == null) {
+                _list = typeof(Singleton<MonoBehaviour>).Assembly.GetTypes().Where(t =>
+                {
+                    if (t == null) return false;
+                    if (t.BaseType == null) return false;
+                    return t.BaseType.Name == "Singleton`1";
+                });
 
-             // gather properties 'SceneDependencies' from top-level class
-             // gather properties 'Persistent' from top-level class or from baseclass
-             // gather propertis 'ResourceName' from top-level class
-             // invokes 'CreateInstance' from top-level class only
-             foreach (var t in _list) {
-            PropertyInfo temp;
-            string[] sd = (temp = t.GetProperty("SceneDependencies", BindingFlags.Static | BindingFlags.Public)) == null ? null : (string[]) temp.GetValue(null, null);
-            bool persistent = (bool) ((temp = t.GetProperty("Persistent", BindingFlags.Static | BindingFlags.Public)) == null ? t.BaseType.GetProperty("Persistent", BindingFlags.Static | BindingFlags.Public).GetValue(null, null) : temp.GetValue(null, null));
-            string ResourceName = (temp = t.GetProperty("ResourceName", BindingFlags.Static | BindingFlags.Public)) == null ? null : (string) temp.GetValue(null, null);
+                // instatiate on awake if objDep != null AND instance == null
+                // on destroy if objDep != null && instance != null && !persistent, destroy
+                foreach (Type t in _list) {
+                    PropertyInfo temp;
+                    object od = (temp = t.GetProperty("ObjectDependency", BindingFlags.Static | BindingFlags.Public)) == null ? null : temp.GetValue(null, null);
+                     bool persistent = (bool) ((temp = t.GetProperty("Persistent", BindingFlags.Static | BindingFlags.Public)) == null ? true : temp.GetValue(null, null)); // true by default
+                    if (od != null) {
+                        EventWrapperBehaviour.AwakeEvent += (EventWrapperBehaviour ewb) =>
+                        {
+                            if (od.GetType() == "".GetType()) {
+                                 if (ewb.gameObject.name != od.ToString()) return; 
+                            } else {
+                                Type type = od as Type;
+                                if (ewb.gameObject.GetComponent(type) == null) return;
+                            }
+                            var tinstance = t.BaseType.GetProperty("Instance", BindingFlags.Static | BindingFlags.Public).GetValue(null, null);
+                            if (tinstance == null) {
+                                var singletonObject = new GameObject();
+                                singletonObject.name = t.FullName.ToString();
+                                if (persistent) UnityEngine.Object.DontDestroyOnLoad(singletonObject);
+                                t.BaseType.GetMethod("CreateInstance", BindingFlags.Static | BindingFlags.Public).Invoke(null, new object[] { singletonObject } );
+                            }
+                        };
+                        EventWrapperBehaviour.OnDestroyEvent += (EventWrapperBehaviour ewb) =>
+                        {
+                            
+                            MonoBehaviour comp = null;
+                            var tinstance = t.BaseType.GetProperty("Instance", BindingFlags.Static | BindingFlags.Public).GetValue(null, null);
+                            if (od.GetType() == "".GetType()) {
+                                if (ewb.gameObject.name != od.ToString()) return; 
+                            } else {
+                                Type type = od as Type;
+                                if ((comp = ewb.gameObject.GetComponent(type) as MonoBehaviour) == null)
+                                {
+                                    return;
+                                } else {
+                                    comp = UnityEngine.GameObject.Find(t.FullName).GetComponent<EventWrapperBehaviour>();
+                                }
+                            }
+                            if (comp != null && !persistent) {
+                                UnityEngine.GameObject.Destroy(comp.gameObject);
+                            }
+                        };
+                    }
+                }
+            }
+            _CheckSingletons();
+        }
+
+        public void _CheckSingletons(Scene? oldScenee = null, Scene? newScenee = null) {
+            Scene oldScene = oldScenee.GetValueOrDefault();
+            Scene newScene = newScenee.GetValueOrDefault();
+            if (newScenee == null) newScene = SceneManager.GetActiveScene();
+            // gather properties 'SceneDependencies' from top-level class
+            // gather properties 'Persistent' from top-level class
+            // gather properties 'ObjectDependency' and 'AdditionalDependencies' from top-level
+            // invokes 'CreateInstance' from top-level class only
+            foreach (var t in _list) {
+                PropertyInfo temp;
+                string[] sd = (temp = t.GetProperty("SceneDependencies", BindingFlags.Static | BindingFlags.Public)) == null ? null : (string[]) temp.GetValue(null, null);
+                bool persistent = (bool) ((temp = t.GetProperty("Persistent", BindingFlags.Static | BindingFlags.Public)) == null ? true : temp.GetValue(null, null)); // true by default
+                var objectDependency = (temp = t.GetProperty("ObjectDependency", BindingFlags.Static | BindingFlags.Public)) == null ? null : temp.GetValue(null, null).ToString();
+                bool additionalDependencies = (temp = t.GetProperty("AdditionalDependencies", BindingFlags.Static | BindingFlags.Public)) == null ? true : (bool) temp.GetValue(null, null); // default is true
+                bool baseClass = (temp = t.GetProperty("BaseClass", BindingFlags.Static | BindingFlags.Public)) == null ? false : (bool) temp.GetValue(null, null); // default is false
+
 
                 // create if:
                 //   instance is null and:
                 //      ScreenDependency is null
                 //      ScreenDependency is equal to current scene
-                // Only call 'CreateInstance' if 'ResourceName' doesn't exists...if it does, instantiate via Resource.Load
+                //      AdditionalDependencies is true
+                //      ObjectDependency is null
+                //      BaseClass = false
                 var tinstance = t.BaseType.GetProperty("Instance", BindingFlags.Static | BindingFlags.Public).GetValue(null, null);
-                if (( (sd == null ? true : sd.Length == 0) || sd.Contains(newScene.name)) && tinstance == null)
+                if (((sd == null ? true :  ( sd.Length == 0 ? true : sd.Contains(newScene.name) ))) && tinstance == null && additionalDependencies && objectDependency == null && !baseClass)
                 {
-                    var singletonObject = ResourceName == null ? new GameObject() : UnityEngine.GameObject.Instantiate(Resources.Load(ResourceName));
+                    var singletonObject = new GameObject();
                     singletonObject.name = t.FullName.ToString();
                     if (persistent) UnityEngine.Object.DontDestroyOnLoad(singletonObject);
-                    if (ResourceName == null) t.BaseType.GetMethod("CreateInstance", BindingFlags.Static | BindingFlags.Public).Invoke(null, new object[] { singletonObject } );
-                } else if ((sd != null ? sd.Length != 0 : false) && !(sd == null ? false : sd.Contains(newScene.name)) && tinstance != null) {
+                    t.BaseType.GetMethod("CreateInstance", BindingFlags.Static | BindingFlags.Public).Invoke(null, new object[] { singletonObject } );
+                } else if ((sd != null ? sd.Length != 0 : false) && !(sd == null ? false : sd.Contains(newScene.name)) && tinstance != null && objectDependency == null) {
                     // delete if:
                     //      ScreenDependency is not null and is not equal to current scene and instance isnt null
                     //      and if not persistant
-                    if (persistent)
+                    //      ObjectDependency is null
+                    if (!persistent)
                     {
                         MonoBehaviour comp = (MonoBehaviour)tinstance;
                         UnityEngine.GameObject.Destroy(comp.gameObject);
@@ -61,4 +126,12 @@ using System.Reflection;
                 }
             }
         }
+
+        public static void Check() {
+            SceneSingletonListener listener = UnityEngine.GameObject.FindObjectsOfType<SceneSingletonListener>()[0];
+            if (listener != null) {
+                listener._CheckSingletons();
+            }
+        }
     }
+
