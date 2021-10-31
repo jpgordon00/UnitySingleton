@@ -58,5 +58,5 @@ SingletonComp = SingletonComp.Instance;
 - ~~Instantiation via attachment of component does not allow component properties to be edited in the editor.~~
 > ~~Allow instantiation via prefab in addition to the current solution that instatiates in code.~~
 - Remove 'Singleton.CreateInstance' by using reflection to find properties at any inheritance level.
-> Currently the properties 'Persistent', 'SceneDependencies' and 'ResourceName' are only read on the top level of the inherited member. Alternatively you could recursively or iteratively search through children until Instance types are found.
+> Currently the properties 'Persistent', 'SceneDependencies' and 'ResourceName', and all other properties are only read on the top level of the inherited member. Alternatively you could recursively or iteratively search through children until Instance types are found.
 - Replace list assembling by comparing System.Runtime.Type.Name with comparing types ( casting System.Runtime.Type to Type ). 
